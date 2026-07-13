@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Roster Management | RMS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        [x-cloak] { display: none !important; }
+        .roster-grid { display: grid; grid-template-columns: 180px repeat(7, 1fr); }
+        .shift-cell { min-height: 120px; transition: all 0.2s; border-bottom: 1px solid #e5e7eb; }
+        .shift-cell:hover { background-color: #f9fafb; }
+        .sidebar-item-active { background-color: #eff6ff; color: #2563eb; border-right: 3px solid #2563eb; }
+        .paper-card { background: white; border-radius: 6px; border: 1px solid #e5e7eb; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+    </style>
+</head>
+<body x-data="rosterApp()" x-init="init()" class="h-screen flex overflow-hidden">
+
+    <!-- Login Overlay -->
+    <div x-show="!isLoggedIn && !isGuest" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900 bg-opacity-50 backdrop-blur-sm">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
+            <div class="text-center mb-8">
+                <div class="bg-blue-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-hospital text-white text-3xl"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-800">Hospital Roster</h2>
+                <p class="text-slate-500">Please sign in to manage the roster</p>
+            </div>
+
+            <form @submit.prevent="login">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">Username</label>
+                        <input type="text" x-model="loginForm.username" class="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">Password</label>
+                        <input type="password" x-model="loginForm.password" class="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Sign In
+                    </button>
+                    <div class="relative my-6">
+                        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-300"></div></div>
+                        <div class="relative flex justify-center text-sm"><span class="px-2 bg-white text-slate-500">Or</span></div>
+                    </div>
+                    <button @click="isGuest = true" type="button" class="w-full flex justify-center py-2 px-4 border border-slate-300 rounded-md shadow-sm text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        View as Guest
+                    </button>
+                </div>
+                <p x-show="loginError" x-text="loginError" class="mt-4 text-sm text-red-600 text-center"></p>
+            </form>
+            <div class="mt-6 text-xs text-slate-400 text-center">
+                Demo Admin: admin / password123
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Sidebar -->
+    <aside class="w-64 bg-white border-r border-slate-200 flex-shrink-0 flex flex-col" x-show="isLoggedIn || isGuest">
+        <div class="p-6 border-b border-slate-100 flex items-center space-x-3">
+            <i class="fas fa-heartbeat text-blue-600 text-2xl"></i>
+            <span class="text-xl font-bold text-slate-800 tracking-tight">RMS Pro</span>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto py-4">
+            <div class="px-4 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Main Menu</div>
+            <button @click="activeTab = 'roster'" :class="{'sidebar-item-active': activeTab === 'roster'}" class="w-full flex items-center px-6 py-3 text-slate-600 hover:bg-slate-50 transition-colors">
+                <i class="far fa-calendar-alt w-6"></i>
+                <span class="font-medium">Weekly Roster</span>
+            </button>
+
+            <template x-if="role === 'admin'">
+                <div>
+                    <div class="px-4 mt-6 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Management</div>
+                    <button @click="activeTab = 'departments'" :class="{'sidebar-item-active': activeTab === 'departments'}" class="w-full flex items-center px-6 py-3 text-slate-600 hover:bg-slate-50 transition-colors">
+                        <i class="fas fa-sitemap w-6"></i>
+                        <span class="font-medium">Departments</span>
+                    </button>
+                    <button @click="activeTab = 'employees'" :class="{'sidebar-item-active': activeTab === 'employees'}" class="w-full flex items-center px-6 py-3 text-slate-600 hover:bg-slate-50 transition-colors">
+                        <i class="fas fa-users w-6"></i>
+                        <span class="font-medium">Employees</span>
+                    </button>
+                </div>
+            </template>
+        </nav>
+
+        <div class="p-4 border-t border-slate-100">
+            <div class="flex items-center space-x-3 p-2 rounded-lg bg-slate-50">
+                <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">
+                    <span x-text="role === 'admin' ? 'AD' : 'GU'"></span>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-slate-800 truncate" x-text="role === 'admin' ? 'System Administrator' : 'Guest User'"></p>
+                    <p class="text-xs text-slate-500 truncate" x-text="role === 'admin' ? 'admin@hospital.com' : 'Public Access'"></p>
+                </div>
+                <button @click="logout" class="text-slate-400 hover:text-red-500">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col overflow-hidden" x-show="isLoggedIn || isGuest">
+        <!-- Top Header -->
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 flex-shrink-0">
+            <h2 class="text-xl font-bold text-slate-800" x-text="getPageTitle()"></h2>
+
+            <div class="flex items-center space-x-4">
+                <div x-show="activeTab === 'roster'" class="flex items-center bg-slate-100 rounded-lg p-1">
+                    <button @click="prevWeek" class="p-2 hover:bg-white rounded-md transition-all"><i class="fas fa-chevron-left text-xs"></i></button>
+                    <span class="px-4 text-sm font-medium text-slate-700" x-text="getWeekRangeLabel()"></span>
+                    <button @click="nextWeek" class="p-2 hover:bg-white rounded-md transition-all"><i class="fas fa-chevron-right text-xs"></i></button>
+                </div>
+
+                <template x-if="role === 'admin'">
+                    <button @click="openAddModal" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-all flex items-center">
+                        <i class="fas fa-plus mr-2"></i>
+                        <span x-text="getAddButtonLabel()"></span>
+                    </button>
+                </template>
+            </div>
+        </header>
+
+        <!-- Viewport -->
+        <div class="flex-1 overflow-auto p-8">
+
+            <!-- Roster View -->
+            <div x-show="activeTab === 'roster'" x-cloak>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="roster-grid border-b border-slate-200 bg-slate-50">
+                        <div class="p-4 border-r border-slate-200 font-bold text-slate-500 text-xs uppercase tracking-wider">Shift</div>
+                        <template x-for="day in weekDays" :key="day.date">
+                            <div class="p-4 border-r border-slate-200 text-center last:border-r-0">
+                                <div class="text-xs font-semibold text-slate-400 uppercase tracking-tighter" x-text="day.name"></div>
+                                <div class="text-lg font-bold text-slate-700" x-text="day.dayNum"></div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <template x-for="shift in shifts" :key="shift.id">
+                        <div class="roster-grid border-b border-slate-200 last:border-b-0">
+                            <div class="p-4 border-r border-slate-200 bg-slate-50 flex flex-col justify-center">
+                                <div class="font-bold text-slate-800" x-text="shift.name"></div>
+                                <div class="text-xs text-slate-500" x-text="shift.time"></div>
+                            </div>
+                            <template x-for="day in weekDays" :key="day.date">
+                                <div class="shift-cell p-2 border-r border-slate-200 last:border-r-0 flex flex-col gap-1 min-h-[120px]">
+                                    <template x-for="assignment in getAssignments(day.date, shift.id)" :key="assignment.id">
+                                        <div class="bg-blue-50 border border-blue-100 rounded p-2 relative group">
+                                            <div class="text-xs font-bold text-blue-800" x-text="getEmployeeName(assignment.employeeId)"></div>
+                                            <div class="text-[10px] text-blue-600" x-text="getDepartmentNameByEmp(assignment.employeeId)"></div>
+                                            <template x-if="role === 'admin'">
+                                                <button @click="removeAssignment(assignment.id)" class="absolute top-1 right-1 hidden group-hover:block text-red-400 hover:text-red-600">
+                                                    <i class="fas fa-times-circle"></i>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="role === 'admin'">
+                                        <button @click="openAssignModal(day.date, shift.id)" class="mt-auto opacity-0 hover:opacity-100 flex items-center justify-center border border-dashed border-slate-300 rounded p-1 text-slate-400 hover:text-blue-600 hover:border-blue-300 transition-all text-xs">
+                                            <i class="fas fa-plus-circle mr-1"></i> Assign
+                                        </button>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="mt-6 flex justify-between items-center" x-show="role === 'admin'">
+                    <p class="text-sm text-slate-500">
+                        <i class="fas fa-info-circle mr-1 text-blue-500"></i>
+                        Hint: Use the "Generate Roster" button to automatically fill empty shifts based on departments.
+                    </p>
+                    <button @click="generateRoster" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-medium shadow transition-all">
+                        <i class="fas fa-magic mr-2"></i> Auto-Generate Week
+                    </button>
+                </div>
+            </div>
+
+            <!-- Departments View -->
+            <div x-show="activeTab === 'departments'" x-cloak>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <template x-for="dept in departments" :key="dept.id">
+                        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                            <div class="flex items-center space-x-4">
+                                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600">
+                                    <i class="fas fa-clinic-medical text-xl"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-slate-800 text-lg" x-text="dept.name"></h3>
+                                    <p class="text-sm text-slate-500" x-text="getEmployeeCount(dept.id) + ' Employees'"></p>
+                                </div>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button @click="editDepartment(dept)" class="text-slate-400 hover:text-blue-600 p-2"><i class="fas fa-edit"></i></button>
+                                <button @click="deleteDepartment(dept.id)" class="text-slate-400 hover:text-red-600 p-2"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Employees View -->
+            <div x-show="activeTab === 'employees'" x-cloak>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <table class="min-w-full divide-y divide-slate-200">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Employee</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Employee ID</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Department</th>
+                                <th class="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200">
+                            <template x-for="emp in employees" :key="emp.id">
+                                <tr class="hover:bg-slate-50 transition-colors">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-bold mr-3" x-text="emp.name.charAt(0)"></div>
+                                            <div class="text-sm font-semibold text-slate-900" x-text="emp.name"></div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500" x-text="emp.empId"></td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-3 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full" x-text="getDepartmentName(emp.deptId)"></span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <button @click="editEmployee(emp)" class="text-blue-600 hover:text-blue-900 mr-4">Edit</button>
+                                        <button @click="deleteEmployee(emp.id)" class="text-red-600 hover:text-red-900">Delete</button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Modal Fragment (Add/Edit Dept) -->
+    <div x-show="modal === 'dept'" class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900 bg-opacity-50 backdrop-blur-sm" x-cloak>
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
+            <h3 class="text-xl font-bold text-slate-800 mb-6" x-text="editingDeptId ? 'Edit Department' : 'New Department'"></h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Department Name</label>
+                    <input type="text" x-model="deptForm.name" class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+            <div class="mt-8 flex justify-end space-x-3">
+                <button @click="modal = null" class="px-4 py-2 text-slate-500 hover:text-slate-700">Cancel</button>
+                <button @click="saveDepartment" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Fragment (Add/Edit Employee) -->
+    <div x-show="modal === 'emp'" class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900 bg-opacity-50 backdrop-blur-sm" x-cloak>
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
+            <h3 class="text-xl font-bold text-slate-800 mb-6" x-text="editingEmpId ? 'Edit Employee' : 'New Employee'"></h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Full Name</label>
+                    <input type="text" x-model="empForm.name" class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm p-2">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Employee ID</label>
+                    <input type="text" x-model="empForm.empId" class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm p-2">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Department</label>
+                    <select x-model="empForm.deptId" class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm p-2">
+                        <option value="">Select Department</option>
+                        <template x-for="dept in departments" :key="dept.id">
+                            <option :value="dept.id" x-text="dept.name"></option>
+                        </template>
+                    </select>
+                </div>
+            </div>
+            <div class="mt-8 flex justify-end space-x-3">
+                <button @click="modal = null" class="px-4 py-2 text-slate-500 hover:text-slate-700">Cancel</button>
+                <button @click="saveEmployee" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Fragment (Assign Roster) -->
+    <div x-show="modal === 'assign'" class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900 bg-opacity-50 backdrop-blur-sm" x-cloak>
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
+            <h3 class="text-xl font-bold text-slate-800 mb-2">Assign Shift</h3>
+            <p class="text-sm text-slate-500 mb-6" x-text="assignmentContext"></p>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Select Employee</label>
+                    <select x-model="assignForm.employeeId" class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm p-2">
+                        <option value="">Choose...</option>
+                        <template x-for="emp in employees" :key="emp.id">
+                            <option :value="emp.id" x-text="emp.name + ' (' + getDepartmentName(emp.deptId) + ')'"></option>
+                        </template>
+                    </select>
+                </div>
+            </div>
+            <div class="mt-8 flex justify-end space-x-3">
+                <button @click="modal = null" class="px-4 py-2 text-slate-500 hover:text-slate-700">Cancel</button>
+                <button @click="saveAssignment" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Assign</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <script>
+        // Firebase Config for: com-example-rms-4ea61
+        const firebaseConfig = {
+            apiKey: "AIzaSyArXNTEiGUXoN1LxQy2BXKymqt0cJkpK9U",
+            authDomain: "com-example-rms-4ea61.firebaseapp.com",
+            projectId: "com-example-rms-4ea61",
+            storageBucket: "com-example-rms-4ea61.firebasestorage.app",
+            messagingSenderId: "326725152339",
+            appId: "1:326725152339:web:5317f2b1d3a4c5e67890ab" // Note: This is a placeholder; web apps have their own ID.
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        function rosterApp() {
+            return {
+                isLoggedIn: false,
+                isGuest: false,
+                role: 'guest',
+                activeTab: 'roster',
+                loginForm: { username: '', password: '' },
+                loginError: '',
+
+                // Data
+                departments: [],
+                employees: [],
+                assignments: [],
+
+                // State
+                currentWeekStart: null,
+                weekDays: [],
+                shifts: [
+                    { id: 'morning', name: 'Morning Shift', time: '06:00 - 14:00' },
+                    { id: 'evening', name: 'Evening Shift', time: '14:00 - 22:00' },
+                    { id: 'night', name: 'Night Shift', time: '22:00 - 06:00' }
+                ],
+
+                // Modals & Forms
+                modal: null,
+                deptForm: { name: '' },
+                editingDeptId: null,
+                empForm: { name: '', empId: '', deptId: '' },
+                editingEmpId: null,
+                assignForm: { date: null, shiftId: null, employeeId: '' },
+                assignmentContext: '',
+
+                init() {
+                    // Real-time Cloud Sync
+                    db.collection('departments').onSnapshot(s => this.departments = s.docs.map(d => ({id: d.id, ...d.data()})));
+                    db.collection('employees').onSnapshot(s => this.employees = s.docs.map(d => ({id: d.id, ...d.data()})));
+                    db.collection('assignments').onSnapshot(s => this.assignments = s.docs.map(d => ({id: d.id, ...d.data()})));
+
+                    this.setThisWeek();
+                },
+
+                login() {
+                    if (this.loginForm.username === 'admin' && this.loginForm.password === 'password123') {
+                        this.isLoggedIn = true;
+                        this.role = 'admin';
+                        this.loginError = '';
+                    } else {
+                        this.loginError = 'Invalid credentials. Try admin / password123';
+                    }
+                },
+
+                logout() {
+                    this.isLoggedIn = false;
+                    this.isGuest = false;
+                    this.role = 'guest';
+                    this.loginForm = { username: '', password: '' };
+                },
+
+                setThisWeek() {
+                    const d = new Date();
+                    const day = d.getDay();
+                    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+                    this.currentWeekStart = new Date(d.setDate(diff));
+                    this.updateWeekDays();
+                },
+
+                updateWeekDays() {
+                    const days = [];
+                    const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                    for (let i = 0; i < 7; i++) {
+                        const date = new Date(this.currentWeekStart);
+                        date.setDate(this.currentWeekStart.getDate() + i);
+                        days.push({
+                            name: names[i],
+                            dayNum: date.getDate(),
+                            date: date.toISOString().split('T')[0]
+                        });
+                    }
+                    this.weekDays = days;
+                },
+
+                prevWeek() {
+                    this.currentWeekStart.setDate(this.currentWeekStart.getDate() - 7);
+                    this.updateWeekDays();
+                },
+
+                nextWeek() {
+                    this.currentWeekStart.setDate(this.currentWeekStart.getDate() + 7);
+                    this.updateWeekDays();
+                },
+
+                getWeekRangeLabel() {
+                    if (!this.weekDays.length) return '';
+                    const start = new Date(this.weekDays[0].date);
+                    const end = new Date(this.weekDays[6].date);
+                    const options = { month: 'short', day: 'numeric' };
+                    return `${start.toLocaleDateString(undefined, options)} - ${end.toLocaleDateString(undefined, options)}, ${start.getFullYear()}`;
+                },
+
+                getPageTitle() {
+                    switch(this.activeTab) {
+                        case 'roster': return 'Department Roster';
+                        case 'departments': return 'Hospital Departments';
+                        case 'employees': return 'Employee Directory';
+                        default: return 'RMS Dashboard';
+                    }
+                },
+
+                getAddButtonLabel() {
+                    switch(this.activeTab) {
+                        case 'departments': return 'Add Department';
+                        case 'employees': return 'Add Employee';
+                        default: return 'New Entry';
+                    }
+                },
+
+                openAddModal() {
+                    if (this.activeTab === 'departments') {
+                        this.editingDeptId = null;
+                        this.deptForm = { name: '' };
+                        this.modal = 'dept';
+                    } else if (this.activeTab === 'employees') {
+                        this.editingEmpId = null;
+                        this.empForm = { name: '', empId: '', deptId: '' };
+                        this.modal = 'emp';
+                    }
+                },
+
+                // Department Logic
+                async saveDepartment() {
+                    if (!this.deptForm.name) return;
+                    if (this.editingDeptId) {
+                        await db.collection('departments').doc(this.editingDeptId).update({ name: this.deptForm.name });
+                    } else {
+                        await db.collection('departments').add({ name: this.deptForm.name });
+                    }
+                    this.modal = null;
+                },
+
+                async deleteDepartment(id) {
+                    if (confirm('Are you sure?')) {
+                        await db.collection('departments').doc(id).delete();
+                    }
+                },
+
+                getDepartmentName(id) {
+                    const d = this.departments.find(d => d.id == id);
+                    return d ? d.name : 'Unassigned';
+                },
+
+                getEmployeeCount(deptId) {
+                    return this.employees.filter(e => e.deptId == deptId).length;
+                },
+
+                // Employee Logic
+                async saveEmployee() {
+                    if (!this.empForm.name || !this.empForm.deptId) return;
+                    if (this.editingEmpId) {
+                        await db.collection('employees').doc(this.editingEmpId).update({ ...this.empForm });
+                    } else {
+                        await db.collection('employees').add({ ...this.empForm });
+                    }
+                    this.modal = null;
+                },
+
+                async deleteEmployee(id) {
+                    if (confirm('Delete this employee?')) {
+                        await db.collection('employees').doc(id).delete();
+                        // Cleanup assignments
+                        const batch = db.batch();
+                        this.assignments.filter(a => a.employeeId === id).forEach(a => {
+                            batch.delete(db.collection('assignments').doc(a.id));
+                        });
+                        await batch.commit();
+                    }
+                },
+
+                getEmployeeName(id) {
+                    const e = this.employees.find(e => e.id == id);
+                    return e ? e.name : 'Unknown';
+                },
+
+                getDepartmentNameByEmp(empId) {
+                    const e = this.employees.find(e => e.id == empId);
+                    return e ? this.getDepartmentName(e.deptId) : 'N/A';
+                },
+
+                // Roster Logic
+                getAssignments(date, shiftId) {
+                    return this.assignments.filter(a => a.date === date && a.shiftId === shiftId);
+                },
+
+                openAssignModal(date, shiftId) {
+                    const shift = this.shifts.find(s => s.id === shiftId);
+                    this.assignmentContext = `${date} | ${shift.name}`;
+                    this.assignForm = { date, shiftId, employeeId: '' };
+                    this.modal = 'assign';
+                },
+
+                async saveAssignment() {
+                    if (!this.assignForm.employeeId) return;
+                    await db.collection('assignments').add({ ...this.assignForm });
+                    this.modal = null;
+                },
+
+                async removeAssignment(id) {
+                    await db.collection('assignments').doc(id).delete();
+                },
+
+                async generateRoster() {
+                    if (this.employees.length === 0) {
+                        alert('Please add employees first.');
+                        return;
+                    }
+
+                    const batch = db.batch();
+                    this.weekDays.forEach(day => {
+                        this.shifts.forEach(shift => {
+                            if (this.getAssignments(day.date, shift.id).length === 0) {
+                                const randomEmp = this.employees[Math.floor(Math.random() * this.employees.length)];
+                                const newRef = db.collection('assignments').doc();
+                                batch.set(newRef, {
+                                    date: day.date,
+                                    shiftId: shift.id,
+                                    employeeId: randomEmp.id
+                                });
+                            }
+                        });
+                    });
+                    await batch.commit();
+                    alert('Cloud Roster Generated!');
+                },
+
+                persist() {
+                    localStorage.setItem('rms_departments', JSON.stringify(this.departments));
+                    localStorage.setItem('rms_employees', JSON.stringify(this.employees));
+                    localStorage.setItem('rms_assignments', JSON.stringify(this.assignments));
+                }
+            }
+        }
+    </script>
+</body>
+</html>

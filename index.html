@@ -368,10 +368,22 @@
                 assignmentContext: '',
 
                 init() {
-                    // Real-time Cloud Sync
-                    db.collection('departments').onSnapshot(s => this.departments = s.docs.map(d => ({id: d.id, ...d.data()})));
-                    db.collection('employees').onSnapshot(s => this.employees = s.docs.map(d => ({id: d.id, ...d.data()})));
-                    db.collection('assignments').onSnapshot(s => this.assignments = s.docs.map(d => ({id: d.id, ...d.data()})));
+                    // 1. Load sample data first so it's NEVER blank
+                    this.departments = [ { id: '1', name: 'Emergency' }, { id: '2', name: 'ICU' } ];
+                    this.employees = [ { id: '1', name: 'Dr. Alice', empId: 'E001', deptId: '1' } ];
+
+                    // 2. Try to sync with Cloud
+                    try {
+                        db.collection('departments').onSnapshot(s => {
+                            if (s.docs.length > 0) this.departments = s.docs.map(d => ({id: d.id, ...d.data()}));
+                        });
+                        db.collection('employees').onSnapshot(s => {
+                            if (s.docs.length > 0) this.employees = s.docs.map(d => ({id: d.id, ...d.data()}));
+                        });
+                        db.collection('assignments').onSnapshot(s => {
+                            if (s.docs.length > 0) this.assignments = s.docs.map(d => ({id: d.id, ...d.data()}));
+                        });
+                    } catch (e) { console.error("Offline mode"); }
 
                     this.setThisWeek();
                 },

@@ -3,356 +3,138 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hospital Roster | RMS</title>
+    <title>Hospital Roster</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Alpine.js -->
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        [x-cloak] { display: none !important; }
-        .roster-grid { display: grid; grid-template-columns: 150px repeat(7, 1fr); }
-    </style>
 </head>
-<body x-data="rosterApp()" x-init="init()" class="bg-slate-100 h-screen flex flex-col">
-
-    <!-- Emergency Login Overlay -->
-    <div x-show="!isLoggedIn && !isGuest" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
-        <div class="bg-white p-10 rounded-2xl shadow-2xl w-full max-w-sm text-center">
-            <div class="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-                <i class="fas fa-hospital text-white text-4xl"></i>
-            </div>
-            <h2 class="text-3xl font-bold text-slate-800 mb-2">Hospital Roster</h2>
-            <p class="text-slate-500 mb-8">Secure Access Portal</p>
-
-            <div class="space-y-4">
-                <input type="text" x-model="loginForm.username" placeholder="Username" class="w-full border-2 border-slate-200 p-3 rounded-xl focus:border-blue-500 outline-none">
-                <input type="password" x-model="loginForm.password" placeholder="Password" class="w-full border-2 border-slate-200 p-3 rounded-xl focus:border-blue-500 outline-none">
-                <button @click="login" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold text-lg shadow-blue-200 shadow-lg transition-all">SIGN IN</button>
-                <button @click="isGuest = true" class="w-full text-slate-500 font-medium py-2">View as Guest</button>
-            </div>
-            <p class="mt-6 text-xs text-slate-400">Default: admin / password123</p>
+<body x-data="app()" x-init="init()" class="bg-gray-100 font-sans">
+    <!-- Login Screen -->
+    <div x-show="!isLoggedIn" class="fixed inset-0 bg-blue-900 flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-sm">
+            <h1 class="text-2xl font-bold text-center mb-6 text-blue-900">Hospital Login</h1>
+            <input type="text" x-model="user" placeholder="Username" class="w-full border p-3 rounded mb-4">
+            <input type="password" x-model="pass" placeholder="Password" class="w-full border p-3 rounded mb-6">
+            <button @click="login()" class="w-full bg-blue-600 text-white p-3 rounded font-bold hover:bg-blue-700">LOGIN</button>
+            <p class="text-center text-xs mt-4 text-gray-400">admin / password123</p>
         </div>
     </div>
 
-    <!-- Main App Container -->
-    <div x-show="isLoggedIn || isGuest" x-cloak class="flex flex-1 overflow-hidden">
-        <!-- Sidebar -->
-        <aside class="w-64 bg-white border-r flex flex-col shadow-sm">
-            <div class="p-6 border-b text-2xl font-black text-blue-600 tracking-tighter">JANAKI RMS</div>
-            <nav class="flex-1 p-4 space-y-2">
-                <button @click="activeTab = 'roster'" :class="activeTab === 'roster' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'" class="w-full text-left p-4 rounded-xl font-bold transition-all">
-                    <i class="fas fa-calendar-alt mr-3"></i> Weekly Roster
-                </button>
-                <template x-if="role === 'admin'">
-                    <div class="space-y-2">
-                        <button @click="activeTab = 'depts'" :class="activeTab === 'depts' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'" class="w-full text-left p-4 rounded-xl font-bold transition-all">
-                            <i class="fas fa-sitemap mr-3"></i> Departments
-                        </button>
-                        <button @click="activeTab = 'emps'" :class="activeTab === 'emps' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'" class="w-full text-left p-4 rounded-xl font-bold transition-all">
-                            <i class="fas fa-users mr-3"></i> Staff List
-                        </button>
+    <!-- Main App -->
+    <div x-show="isLoggedIn" class="min-h-screen flex flex-col">
+        <nav class="bg-blue-600 text-white p-4 flex justify-between items-center shadow-lg">
+            <span class="font-bold text-xl">JANAKI ROSTER</span>
+            <button @click="isLoggedIn = false" class="text-sm bg-blue-700 px-3 py-1 rounded">Logout</button>
+        </nav>
+
+        <div class="p-4 flex-1">
+            <!-- Tabs -->
+            <div class="flex border-b mb-4">
+                <button @click="tab='roster'" :class="tab=='roster'?'border-blue-600 text-blue-600':'text-gray-500'" class="p-4 font-bold border-b-2">ROSTER</button>
+                <button @click="tab='staff'" :class="tab=='staff'?'border-blue-600 text-blue-600':'text-gray-500'" class="p-4 font-bold border-b-2">STAFF</button>
+            </div>
+
+            <!-- Roster Grid -->
+            <div x-show="tab=='roster'" class="bg-white rounded shadow overflow-x-auto">
+                <table class="w-full border-collapse">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="border p-3 text-left w-32">SHIFT</th>
+                            <template x-for="day in days">
+                                <th class="border p-3 text-center" x-text="day"></th>
+                            </template>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="shift in shifts">
+                            <tr>
+                                <td class="border p-3 font-bold bg-gray-50">
+                                    <div x-text="shift.name"></div>
+                                    <div class="text-[10px] text-gray-400" x-text="shift.time"></div>
+                                </td>
+                                <template x-for="day in days">
+                                    <td class="border p-2 min-h-[80px] vertical-top">
+                                        <template x-for="(entry, index) in getEntries(day, shift.id)">
+                                            <div class="bg-blue-100 text-blue-800 p-1 text-xs rounded mb-1 flex justify-between">
+                                                <span x-text="entry.name"></span>
+                                                <button @click="remove(day, shift.id, index)" class="text-red-500 font-bold ml-2">×</button>
+                                            </div>
+                                        </template>
+                                        <button @click="assign(day, shift.id)" class="w-full border-dashed border border-gray-200 text-gray-300 py-1 rounded hover:border-blue-300 hover:text-blue-500 text-xs">+</button>
+                                    </td>
+                                </template>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Staff List -->
+            <div x-show="tab=='staff'" class="bg-white rounded shadow p-6">
+                <h2 class="font-bold text-xl mb-4">Employee Directory</h2>
+                <template x-for="s in staff">
+                    <div class="flex justify-between items-center p-3 border-b">
+                        <span x-text="s" class="font-medium text-gray-700"></span>
+                        <button @click="deleteStaff(s)" class="text-red-500 text-sm">Remove</button>
                     </div>
                 </template>
-            </nav>
-            <div class="p-4 border-t">
-                <button @click="location.reload()" class="w-full text-red-500 font-bold p-2 text-sm">Logout <i class="fas fa-sign-out-alt"></i></button>
+                <button @click="addStaff()" class="mt-4 bg-emerald-500 text-white px-4 py-2 rounded font-bold">+ Add Employee</button>
             </div>
-        </aside>
-
-        <!-- Content Area -->
-        <main class="flex-1 flex flex-col overflow-hidden">
-            <header class="h-20 bg-white border-b px-8 flex items-center justify-between">
-                <h1 class="text-2xl font-bold text-slate-800" x-text="activeTab === 'roster' ? 'Roster View' : (activeTab === 'depts' ? 'Hospital Units' : 'Employee Directory')"></h1>
-
-                <div x-show="activeTab === 'roster'" class="flex items-center gap-6 bg-slate-50 p-2 rounded-2xl border">
-                    <button @click="prevWeek()" class="w-10 h-10 flex items-center justify-center hover:bg-white rounded-xl shadow-sm"><i class="fas fa-chevron-left"></i></button>
-                    <span x-text="getWeekLabel()" class="font-bold text-slate-700"></span>
-                    <button @click="nextWeek()" class="w-10 h-10 flex items-center justify-center hover:bg-white rounded-xl shadow-sm"><i class="fas fa-chevron-right"></i></button>
-                </div>
-
-                <div x-show="role === 'admin'" class="flex gap-2">
-                    <button @click="generateRoster()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-emerald-100 transition-all">
-                        <i class="fas fa-magic mr-2"></i> Auto-Generate
-                    </button>
-                </div>
-            </header>
-
-            <div class="flex-1 overflow-auto p-8">
-                <!-- Roster Section -->
-                <div x-show="activeTab === 'roster'" class="bg-white rounded-2xl shadow-xl border overflow-hidden">
-                    <div class="roster-grid bg-slate-50 border-b">
-                        <div class="p-6 border-r font-black text-slate-400 text-xs tracking-widest uppercase">Shift Details</div>
-                        <template x-for="day in weekDays">
-                            <div class="p-4 text-center border-r last:border-0">
-                                <div class="text-xs font-bold text-slate-400 uppercase" x-text="day.name"></div>
-                                <div class="text-2xl font-black text-slate-800" x-text="day.dayNum"></div>
-                            </div>
-                        </template>
-                    </div>
-
-                    <template x-for="shift in shifts">
-                        <div class="roster-grid border-b last:border-0">
-                            <div class="p-6 border-r bg-slate-50 flex flex-col justify-center">
-                                <div class="font-black text-slate-800 text-sm" x-text="shift.name"></div>
-                                <div class="text-[10px] font-bold text-blue-500" x-text="shift.time"></div>
-                            </div>
-                            <template x-for="day in weekDays">
-                                <div class="p-2 border-r last:border-0 min-h-[140px] flex flex-col gap-2 bg-white hover:bg-slate-50/50 transition-colors">
-                                    <template x-for="a in getAssignments(day.date, shift.id)">
-                                        <div class="bg-blue-50 border border-blue-100 p-3 rounded-xl relative group shadow-sm">
-                                            <div class="font-bold text-blue-900 text-[11px]" x-text="getEmpName(a.employeeId)"></div>
-                                            <div class="text-[9px] text-blue-500 font-medium" x-text="getDeptNameByEmp(a.employeeId)"></div>
-                                            <button x-show="role === 'admin'" @click="removeAssignment(a.id)" class="absolute -top-1 -right-1 hidden group-hover:flex bg-red-500 text-white w-5 h-5 items-center justify-center rounded-full text-[10px] shadow-md">×</button>
-                                        </div>
-                                    </template>
-                                    <button x-show="role === 'admin'" @click="openAssign(day.date, shift.id)" class="mt-auto border-2 border-dashed border-slate-100 text-slate-300 hover:border-blue-400 hover:text-blue-500 py-2 rounded-xl text-xs font-bold transition-all">+</button>
-                                </div>
-                            </template>
-                        </div>
-                    </template>
-                </div>
-
-                <!-- Depts Section -->
-                <div x-show="activeTab === 'depts'" class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <template x-for="d in departments">
-                        <div class="bg-white p-8 rounded-2xl shadow-lg border-t-4 border-blue-500 flex justify-between items-center">
-                            <div>
-                                <h3 class="text-xl font-black text-slate-800" x-text="d.name"></h3>
-                                <p class="text-slate-400 text-sm">Medical Unit</p>
-                            </div>
-                            <button @click="deleteDept(d.id)" class="text-red-400 hover:text-red-600 p-2"><i class="fas fa-trash"></i></button>
-                        </div>
-                    </template>
-                    <button @click="addDept()" class="bg-white border-2 border-dashed border-slate-200 p-8 rounded-2xl text-slate-400 font-bold hover:border-blue-400 hover:text-blue-500 transition-all">+ Add New Unit</button>
-                </div>
-
-                <!-- Staff Section -->
-                <div x-show="activeTab === 'emps'" class="bg-white rounded-2xl shadow-xl overflow-hidden border">
-                    <table class="w-full">
-                        <thead>
-                            <tr class="bg-slate-50 text-left border-b">
-                                <th class="p-6 text-xs font-black text-slate-400 uppercase tracking-widest">Name</th>
-                                <th class="p-6 text-xs font-black text-slate-400 uppercase tracking-widest">Department</th>
-                                <th class="p-6 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-for="e in employees">
-                                <tr class="border-b last:border-0 hover:bg-slate-50 transition-colors">
-                                    <td class="p-6 font-bold text-slate-800" x-text="e.name"></td>
-                                    <td class="p-6 text-slate-500"><span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold" x-text="getDeptName(e.deptId)"></span></td>
-                                    <td class="p-6 text-right"><button @click="deleteEmp(e.id)" class="text-red-400 font-bold hover:underline">Delete</button></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                    <button @click="addEmp()" class="w-full p-6 bg-slate-50 text-blue-600 font-black hover:bg-blue-50 transition-all">+ Add Medical Staff</button>
-                </div>
-            </div>
-        </main>
+        </div>
     </div>
 
-    <!-- Status Bar -->
-    <footer x-show="isLoggedIn || isGuest" class="h-8 bg-slate-800 text-[10px] text-slate-400 px-4 flex items-center justify-between">
-        <div class="flex items-center gap-2">
-            <div :class="dbConnected ? 'bg-emerald-500' : 'bg-amber-500'" class="w-2 h-2 rounded-full animate-pulse"></div>
-            <span x-text="dbConnected ? 'Cloud Sync Active' : 'Offline Mode (Local Storage)'"></span>
-        </div>
-        <div>RMS Version 2.0.1 - Fail-Safe Edition</div>
-    </footer>
-
-    <!-- Firebase SDKs (Compat) -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-
     <script>
-        function rosterApp() {
+        function app() {
             return {
-                isLoggedIn: false, isGuest: false, role: 'guest', activeTab: 'roster',
-                loginForm: { username: '', password: '' },
-                departments: [{id:'1', name:'Emergency'}, {id:'2', name:'ICU'}],
-                employees: [{id:'1', name:'Dr. Alice Smith', deptId:'1'}, {id:'2', name:'Dr. Charlie Brown', deptId:'2'}],
-                assignments: [],
-                dbConnected: false,
-                currentWeekStart: new Date(),
-                weekDays: [],
+                isLoggedIn: false, user: '', pass: '', tab: 'roster',
+                days: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
                 shifts: [
-                    { id: 'm', name: 'Morning Shift', time: '06:00 - 14:00' },
-                    { id: 'e', name: 'Evening Shift', time: '14:00 - 22:00' },
-                    { id: 'n', name: 'Night Shift', time: '22:00 - 06:00' }
+                    {id:'m', name:'Morning', time:'06:00-14:00'},
+                    {id:'e', name:'Evening', time:'14:00-22:00'},
+                    {id:'n', name:'Night', time:'22:00-06:00'}
                 ],
-                db: null,
+                staff: ['Dr. Alice', 'Dr. Bob', 'Nurse Charlie'],
+                roster: {}, // Format: {"Mon-m": ["Dr. Alice"]}
 
-                async init() {
-                    this.updateWeek();
-                    this.loadLocal(); // Always load local first so it's NEVER blank
-
-                    try {
-                        const config = {
-                            apiKey: "AIzaSyArXNTEiGUXoN1LxQy2BXKymqt0cJkpK9U",
-                            authDomain: "com-example-rms-4ea61.firebaseapp.com",
-                            projectId: "com-example-rms-4ea61",
-                            storageBucket: "com-example-rms-4ea61.appspot.com",
-                            appId: "1:326725152339:web:e46fc4ab6f4397abc660a6"
-                        };
-                        firebase.initializeApp(config);
-                        this.db = firebase.firestore();
-                        this.dbConnected = true;
-                        this.syncCloud();
-                    } catch (e) {
-                        console.log("Cloud not initialized. Staying in Local Mode.");
+                init() {
+                    const saved = localStorage.getItem('rms_data');
+                    if (saved) {
+                        const parsed = JSON.parse(saved);
+                        this.staff = parsed.staff || this.staff;
+                        this.roster = parsed.roster || this.roster;
                     }
                 },
-
-                loadLocal() {
-                    const d = localStorage.getItem('rms_d');
-                    const e = localStorage.getItem('rms_e');
-                    const a = localStorage.getItem('rms_a');
-                    if(d) this.departments = JSON.parse(d);
-                    if(e) this.employees = JSON.parse(e);
-                    if(a) this.assignments = JSON.parse(a);
+                save() {
+                    localStorage.setItem('rms_data', JSON.stringify({ staff: this.staff, roster: this.roster }));
                 },
-
-                persistLocal() {
-                    localStorage.setItem('rms_d', JSON.stringify(this.departments));
-                    localStorage.setItem('rms_e', JSON.stringify(this.employees));
-                    localStorage.setItem('rms_a', JSON.stringify(this.assignments));
-                },
-
-                syncCloud() {
-                    if(!this.db) return;
-                    this.db.collection('depts').onSnapshot(s => {
-                        if(s.docs.length > 0) {
-                            this.departments = s.docs.map(d => ({id:d.id, ...d.data()}));
-                            this.persistLocal();
-                        }
-                    }, err => console.log("Firestore error:", err));
-
-                    this.db.collection('emps').onSnapshot(s => {
-                        if(s.docs.length > 0) {
-                            this.employees = s.docs.map(d => ({id:d.id, ...d.data()}));
-                            this.persistLocal();
-                        }
-                    });
-
-                    this.db.collection('assignments').onSnapshot(s => {
-                        this.assignments = s.docs.map(d => ({id:d.id, ...d.data()}));
-                        this.persistLocal();
-                    });
-                },
-
                 login() {
-                    if(this.loginForm.username === 'admin' && this.loginForm.password === 'password123') {
-                        this.isLoggedIn = true; this.role = 'admin';
-                    } else alert('Invalid Credentials');
+                    if (this.user === 'admin' && this.pass === 'password123') this.isLoggedIn = true;
+                    else alert('Login Failed');
                 },
-
-                updateWeek() {
-                    const start = new Date(this.currentWeekStart);
-                    start.setDate(start.getDate() - start.getDay() + 1);
-                    this.weekDays = [];
-                    const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                    for(let i=0; i<7; i++) {
-                        const d = new Date(start); d.setDate(start.getDate() + i);
-                        this.weekDays.push({ name: names[i], dayNum: d.getDate(), date: d.toISOString().split('T')[0] });
+                getEntries(day, sid) {
+                    const key = day + '-' + sid;
+                    return (this.roster[key] || []).map(name => ({ name }));
+                },
+                assign(day, sid) {
+                    const name = prompt("Enter Name from Staff List:");
+                    if (name) {
+                        const key = day + '-' + sid;
+                        if (!this.roster[key]) this.roster[key] = [];
+                        this.roster[key].push(name);
+                        this.save();
                     }
                 },
-
-                getWeekLabel() { return this.weekDays[0]?.date + ' - ' + this.weekDays[6]?.date; },
-                prevWeek() { this.currentWeekStart.setDate(this.currentWeekStart.getDate() - 7); this.updateWeek(); },
-                nextWeek() { this.currentWeekStart.setDate(this.currentWeekStart.getDate() + 7); this.updateWeek(); },
-
-                getAssignments(date, sid) { return this.assignments.filter(a => a.date === date && a.shiftId === sid); },
-                getEmpName(id) { return this.employees.find(e => e.id == id)?.name || 'Unknown'; },
-                getDeptName(id) { return this.departments.find(d => d.id == id)?.name || 'N/A'; },
-                getDeptNameByEmp(eid) {
-                    const e = this.employees.find(e => e.id == eid);
-                    return e ? this.getDeptName(e.deptId) : 'N/A';
+                remove(day, sid, index) {
+                    const key = day + '-' + sid;
+                    this.roster[key].splice(index, 1);
+                    this.save();
                 },
-
-                async addDept() {
-                    const n = prompt("New Department Name:");
-                    if(!n) return;
-                    const data = { name: n };
-                    if(this.db) {
-                        await this.db.collection('depts').add(data);
-                    } else {
-                        this.departments.push({ id: Date.now(), ...data });
-                        this.persistLocal();
-                    }
+                addStaff() {
+                    const n = prompt("New Staff Name:");
+                    if (n) { this.staff.push(n); this.save(); }
                 },
-                async deleteDept(id) {
-                    if(!confirm('Delete this unit?')) return;
-                    if(this.db && typeof id === 'string') {
-                        await this.db.collection('depts').doc(id).delete();
-                    } else {
-                        this.departments = this.departments.filter(d => d.id != id);
-                        this.persistLocal();
-                    }
-                },
-
-                async addEmp() {
-                    const n = prompt("Employee Name:");
-                    if(!n) return;
-                    const data = { name: n, deptId: this.departments[0].id };
-                    if(this.db) {
-                        await this.db.collection('emps').add(data);
-                    } else {
-                        this.employees.push({ id: Date.now(), ...data });
-                        this.persistLocal();
-                    }
-                },
-                async deleteEmp(id) {
-                    if(!confirm('Delete staff member?')) return;
-                    if(this.db && typeof id === 'string') {
-                        await this.db.collection('emps').doc(id).delete();
-                    } else {
-                        this.employees = this.employees.filter(e => e.id != id);
-                        this.persistLocal();
-                    }
-                },
-
-                async openAssign(date, sid) {
-                    const list = this.employees.map((e, index) => `${index + 1}. ${e.name}`).join('\n');
-                    const choice = prompt("Choose Employee Number:\n" + list);
-                    if(!choice) return;
-                    const emp = this.employees[parseInt(choice) - 1];
-                    if(!emp) return;
-
-                    const data = { date, shiftId: sid, employeeId: emp.id };
-                    if(this.db) {
-                        await this.db.collection('assignments').add(data);
-                    } else {
-                        this.assignments.push({ id: Date.now(), ...data });
-                        this.persistLocal();
-                    }
-                },
-
-                async removeAssignment(id) {
-                    if(this.db && typeof id === 'string') {
-                        await this.db.collection('assignments').doc(id).delete();
-                    } else {
-                        this.assignments = this.assignments.filter(a => a.id != id);
-                        this.persistLocal();
-                    }
-                },
-
-                async generateRoster() {
-                    if(this.employees.length === 0) return alert('Add staff first!');
-                    for(let d of this.weekDays) {
-                        for(let s of this.shifts) {
-                            if(this.getAssignments(d.date, s.id).length === 0) {
-                                const e = this.employees[Math.floor(Math.random() * this.employees.length)];
-                                const data = { date: d.date, shiftId: s.id, employeeId: e.id };
-                                if(this.db) {
-                                    await this.db.collection('assignments').add(data);
-                                } else {
-                                    this.assignments.push({ id: Date.now() + Math.random(), ...data });
-                                }
-                            }
-                        }
-                    }
-                    this.persistLocal();
+                deleteStaff(name) {
+                    this.staff = this.staff.filter(s => s !== name);
+                    this.save();
                 }
             }
         }
